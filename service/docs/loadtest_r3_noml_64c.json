@@ -1,0 +1,16 @@
+{
+ "name": "r3_noml_64c",
+ "url": "http://127.0.0.1:8820",
+ "duration_s": 30,
+ "connections": 64,
+ "requests": 72776,
+ "rps": 2425.9,
+ "p50_ms": 22.6,
+ "p95_ms": 61.8,
+ "p99_ms": 89.0,
+ "mean_ms": 26.4,
+ "status_codes": {
+  "200": 69198,
+  "400": 3578
+ }
+}

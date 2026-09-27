@@ -1,0 +1,16 @@
+{
+ "name": "r4_win_2cpu_2w_64c",
+ "url": "http://127.0.0.1:8820",
+ "duration_s": 30,
+ "connections": 64,
+ "requests": 68364,
+ "rps": 2278.8,
+ "p50_ms": 24.7,
+ "p95_ms": 63.1,
+ "p99_ms": 88.0,
+ "mean_ms": 28.1,
+ "status_codes": {
+  "200": 64966,
+  "400": 3398
+ }
+}

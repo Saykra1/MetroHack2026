@@ -1,0 +1,52 @@
+{
+ "routes": {
+  "1": {
+   "vehicle_model": "71-931М",
+   "vehicle_class": "ОБК",
+   "length_km": 8.48
+  },
+  "10": {
+   "vehicle_model": "71-911ЕМ",
+   "vehicle_class": "БК",
+   "length_km": 5.88
+  },
+  "11": {
+   "vehicle_model": "71-931М",
+   "vehicle_class": "ОБК",
+   "length_km": 19.07
+  },
+  "12": {
+   "vehicle_model": "71-931М",
+   "vehicle_class": "ОБК",
+   "length_km": 21.02
+  },
+  "2": {
+   "vehicle_model": "71-931М",
+   "vehicle_class": "ОБК",
+   "length_km": 9.85
+  },
+  "3": {
+   "vehicle_model": "71-931М",
+   "vehicle_class": "ОБК",
+   "length_km": 17.44
+  },
+  "4": {
+   "vehicle_model": "71-931М",
+   "vehicle_class": "ОБК",
+   "length_km": 16.07
+  },
+  "5": {
+   "vehicle_model": "71-153",
+   "vehicle_class": "БК",
+   "length_km": 5.06
+  },
+  "6": {
+   "length_km": 12.8
+  },
+  "7": {
+   "length_km": 17.81
+  }
+ },
+ "schedule_speed_kmh": 17.2,
+ "schedule_sample": "маршрут 1: 5.16 км за 18 мин"
+}

@@ -1,0 +1,16 @@
+{
+ "name": "r3_win_2cpu_2w_16c",
+ "url": "http://127.0.0.1:8820",
+ "duration_s": 30,
+ "connections": 16,
+ "requests": 68993,
+ "rps": 2299.8,
+ "p50_ms": 5.7,
+ "p95_ms": 16.6,
+ "p99_ms": 24.3,
+ "mean_ms": 6.9,
+ "status_codes": {
+  "200": 65569,
+  "400": 3424
+ }
+}
