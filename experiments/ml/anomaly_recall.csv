@@ -1,0 +1,9 @@
+label;n;flagged;recall
+holiday (New Year period);108;58;0.5370370370370371
+holiday / bridge / pre-holiday;81;54;0.6666666666666666
+holiday weekend;680;44;0.06470588235294118
+repairs: route 50 Jul;31;10;0.3225806451612903
+repairs: route 50 weekends (Sep-Nov 14);16;16;1.0
+repairs: route 7 Jul-Aug;62;22;0.3548387096774194
+repairs: route 7 weekends (Sep-Nov 14);16;0;0.0
+school break;635;25;0.03937007874015748

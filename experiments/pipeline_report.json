@@ -1,0 +1,23 @@
+{
+ "rejected_or_flagged": {
+  "failed_validation": 2775744,
+  "bad_timestamp": 0,
+  "not_tram": 0,
+  "future_input_date_ignored": 21270,
+  "total": 62443498
+ },
+ "routes_with_geometry": [
+  1,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  10,
+  11,
+  12
+ ],
+ "stops_bound": 489,
+ "note": "routes 17, 25, 26, 28, 50 have no stop geometry in the directory: route-level only"
+}
