@@ -58,6 +58,34 @@ service/data/                  прогноз, разложение, истор�
    └─ app/                     FastAPI: данные в памяти (numpy), ответы за миллисекунды
    └─ static/                  дашборд: Leaflet + ECharts, без сборки
 ```
+```mermaid
+flowchart LR
+  subgraph P["Data & model pipeline (hach_metro/src)"]
+    I["Ingest / normalisation<br/>src/pipeline_ingest.py<br/>62.4M raw → 59.7M valid, 28 s,<br/>100 % match with labels"]
+    G["Features / geo-binding<br/>src/pipeline_geo.py (route → stops)<br/>src/adjust.py (weather, special days, rules)"]
+    F["Forecast / aggregation<br/>src/model_ls.py (level × shape)<br/>src/make_final.py → final_candidate.csv + _explain.csv"]
+    I --> G --> F
+  end
+  subgraph ML["ML layer (hach_metro/src/ml → experiments/ml)"]
+    Q["intervals.csv (P10/P50/P90)<br/>anomalies.csv (IsolationForest + z)<br/>hybrid_nov_dec.csv (base × LightGBM)<br/>REPORT.md"]
+  end
+  subgraph B["Bundle (service/scripts/prepare_data.py)"]
+    D["data/: history, forecast, explain,<br/>stops.json, weather_daily.csv, fleet.json,<br/>pipeline_report.json, ML files (optional)"]
+  end
+  subgraph C["Container: 2 vCPU / 2 GB"]
+    A["API: service/app<br/>FastAPI /api/v1 · uvicorn ×2<br/>queries.py · adjust.py (coefficients)<br/>fleet (rolling stock) · ml.py (intervals, anomalies)<br/>assistant.py (rules) · lru-cache of JSON bytes"]
+    M[("in-memory float32 cubes<br/>route × day × hour:<br/>history / forecast / combined<br/>+ base / special / weather / rules")]
+    W["Frontend: service/static<br/>index.html + app.js + style.css<br/>Leaflet map, ECharts"]
+    A --> M
+    A --> W
+  end
+  F --> D --> A
+  F --> Q --> D
+  U["Dispatcher's browser"] -->|REST JSON / CSV / XLSX| A
+```
+- При запуске каждый рабочий загружает около 90 тыс. строк в плотные кубы "float32". Каждый запрос представляет собой простой срез + умножение (исправления) + уменьшение, так что это O (запрашиваемые ячейки).
+- Сериализованные ответы кэшируются (`lru_cache`, 4096 ключей). Параметры коррекции являются частью ключа (замороженный класс данных). Данные остаются неизменяемыми после запуска.
+- Промежуточное программное обеспечение для метрик - это чистый ASGI. GZip включен для ответов размером более 2 КБ. 
 
 Сервис не хранит состояние, поэтому масштабируется горизонтально: несколько контейнеров за балансировщиком.
 
