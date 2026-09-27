@@ -1,0 +1,28 @@
+services:
+  tram-forecast:
+    build: .
+    image: tram-forecast:latest
+    container_name: tram-forecast
+    ports:
+      - "8000:8000"
+    environment:
+      WORKERS: "2"   # 1 worker per vCPU: measured best p95 under the 2-CPU limit
+      # Swap the forecast without rebuilding: mount a file and point FORECAST_PATH at it, e.g.
+      # FORECAST_PATH: /srv/forecast/v02.csv
+      # EXPLAIN_PATH: /srv/forecast/v02_explain.csv
+    # volumes:
+    #   - ../submissions:/srv/forecast:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: 2g
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=2).status == 200 else 1)"]
+      interval: 15s
+      timeout: 3s
+      start_period: 15s
+      retries: 3
+    restart: unless-stopped
+    # The service never needs the TomTom key: scripts/fetch_traffic.py runs on the host (key in the gitignored
+    # service/.env) and writes data/traffic_live.json, which the image picks up on rebuild or via a volume.

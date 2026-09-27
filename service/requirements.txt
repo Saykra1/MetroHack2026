@@ -1,0 +1,6 @@
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+numpy==2.2.6
+pandas==2.3.1
+orjson==3.11.8
+xlsxwriter==3.2.9

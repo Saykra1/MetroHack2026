@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Трамвай: прогноз загрузки</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='7' fill='%232a78d6'/><path d='M9 22h14M11 9h10v10H11zM14 6h4M12 25l-2 2M20 25l2 2' stroke='white' stroke-width='2' fill='none' stroke-linecap='round'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- fonts never block the first render (slow CDN → the system font is used until they arrive) -->
+  <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+  <noscript><link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet"></noscript>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<a class="skip" href="#views">К содержимому</a>
+<header class="topbar">
+  <div class="brand">
+    <div class="logo" aria-hidden="true">
+      <svg viewBox="0 0 32 32" width="28" height="28"><rect width="32" height="32" rx="8" fill="var(--accent-strong)"/><path d="M9 22h14M11 9h10v10H11zM14 6h4M12 25l-2 2M20 25l2 2" stroke="var(--on-primary)" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+    </div>
+    <div>
+      <h1>Прогноз загрузки трамвайных маршрутов</h1>
+      <div class="sub" id="subtitle">Факт за январь–октябрь 2025, прогноз на ноябрь–декабрь 2025</div>
+    </div>
+  </div>
+  <nav class="links">
+    <button class="btn scn-btn" id="scnBtn" aria-controls="drawer" aria-expanded="false" title="Корректирующие коэффициенты: что будет, если…"><svg class="ico-sm" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span>Сценарий</span><b class="scn-badge" id="scnBadge" hidden>0</b></button>
+    <button class="btn filt-btn" id="filtBtn" aria-controls="filters" aria-expanded="false"><svg class="ico-sm" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h18l-7 8v6l-4-2v-4L3 5z"/></svg><span>Фильтры</span></button>
+    <a class="icon-btn" href="/docs" target="_blank" rel="noopener" aria-label="Документация API (Swagger)" data-tip="Документация API"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M13.5 4l-3 16"/></svg></a>
+    <button id="themeBtn" class="icon-btn theme-btn" aria-label="Переключить тему" data-tip="Светлая / тёмная тема"><svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><g class="sun"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></g><path class="moon" d="M20 14.5A8 8 0 0 1 9.5 4 7 7 0 1 0 20 14.5z"/></svg></button>
+    <button class="cat-head" id="catHead" title="Помощник диспетчера" aria-label="Открыть помощника диспетчера"><img src="/static/img/cat_sitting.png" alt="" width="28" height="31"></button>
+  </nav>
+</header>
+
+<section class="filters" id="filters" aria-label="Фильтры">
+  <div class="sheet-h"><b>Фильтры</b><button class="ghost" id="filtClose" aria-label="Закрыть фильтры">✕</button></div>
+  <label class="f">
+    <span>Маршрут</span>
+    <select id="route"></select>
+  </label>
+  <div class="f">
+    <span>Горизонт</span>
+    <div class="seg" id="horizon" role="tablist">
+      <button data-h="day" class="on">День</button>
+      <button data-h="month">Месяц</button>
+      <button data-h="year">Год</button>
+    </div>
+  </div>
+  <label class="f" id="dateBox">
+    <span>Дата</span>
+    <input type="date" id="date" min="2025-01-01" max="2025-12-31">
+  </label>
+  <label class="f hidden" id="monthBox">
+    <span>Месяц</span>
+    <select id="month"></select>
+  </label>
+  <label class="f hidden" id="growthBox">
+    <span>Рост к 2025, %</span>
+    <input type="number" id="growth" value="0" min="-50" max="50" step="0.5">
+  </label>
+  <label class="f hidden" id="bandBox">
+    <span>Коридор ±, %</span>
+    <input type="number" id="band" value="10" min="0" max="50" step="1">
+  </label>
+  <div class="f hidden" id="modelBox">
+    <span>Модель</span>
+    <div class="seg" id="modelSeg" role="tablist" title="Переключить прогноз: структурная модель v08 или гибрид с LightGBM">
+      <button data-m="v08" class="on">v08</button>
+      <button data-m="hybrid">Гибрид ML</button>
+    </div>
+  </div>
+  <div class="f">
+    <span>Часы</span>
+    <div class="hours">
+      <select id="hourFrom"></select><span class="dash">—</span><select id="hourTo"></select>
+    </div>
+  </div>
+  <div class="f push">
+    <span>Экспорт</span>
+    <div class="btns">
+      <button id="expCsv" class="btn">CSV</button>
+      <button id="expXlsx" class="btn">XLSX</button>
+    </div>
+  </div>
+</section>
+
+<div id="toast" class="toast hidden" role="alert"></div>
+
+<div class="shell">
+<nav class="viewnav" id="viewnav" role="tablist" aria-label="Разделы">
+  <button role="tab" id="tab-overview" aria-controls="view-overview" aria-selected="false" tabindex="-1" data-view="overview"><svg class="ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-8 9 8M5 10v10h14V10"/></svg><span>Обзор</span></button>
+  <button role="tab" id="tab-fleet" aria-controls="view-fleet" aria-selected="false" tabindex="-1" data-view="fleet"><svg class="ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="13" rx="3"/><path d="M5 11h14M9 20l-2 2M15 20l2 2M8 17v3M16 17v3"/></svg><span>Выпуск</span></button>
+  <button role="tab" id="tab-analytics" aria-controls="view-analytics" aria-selected="false" tabindex="-1" data-view="analytics"><svg class="ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg><span>Аналитика</span></button>
+  <button role="tab" id="tab-anomalies" aria-controls="view-anomalies" aria-selected="false" tabindex="-1" data-view="anomalies"><svg class="ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-6 4 4 4-8 5 10"/><circle cx="16" cy="7" r="1.6"/></svg><span>ИИ-аномалии</span></button>
+  <button role="tab" id="tab-model" aria-controls="view-model" aria-selected="false" tabindex="-1" data-view="model"><svg class="ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M5 19l3-3M16 8l3-3"/></svg><span>Модель</span></button>
+</nav>
+<main class="views" id="views">
+  <section class="view active" id="view-overview" role="tabpanel" aria-labelledby="tab-overview" tabindex="-1">
+    <div class="view-h"><h2 class="view-title">Обзор</h2><p class="view-sub">Где и когда будет тесно: KPI, карта, часы риска</p></div>
+    <section class="kpis" id="kpis">
+  <div class="kpi" data-accent="blue"><svg class="k-ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><div class="k-label">Пиковый час</div><div class="k-val" id="kPeak">—</div><div class="k-sub" id="kPeakSub"></div></div>
+  <div class="kpi" data-accent="blue"><svg class="k-ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><div class="k-label">Макс. загрузка за час</div><div class="k-val" id="kMax">—</div><div class="k-sub" id="kMaxSub"></div></div>
+  <div class="kpi" data-accent="blue"><svg class="k-ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0"/><path d="M16 4.5a3.5 3.5 0 0 1 0 7M18 14a6 6 0 0 1 3.5 6"/></svg><div class="k-label" id="kTotalLabel">Пассажиров за период</div><div class="k-val" id="kTotal">—</div><div class="k-sub" id="kTotalSub"></div></div>
+  <div class="kpi" data-accent="blue"><svg class="k-ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17L17 7M9 7h8v8"/></svg><div class="k-label">Изменение к прошлому месяцу</div><div class="k-val" id="kChange">—</div><div class="k-sub" id="kChangeSub"></div></div>
+  <div class="kpi" data-accent="orange" id="kOverBox" title="P(пассажиров за час больше вместимости текущего выпуска) по интервалам прогноза P10–P90"><svg class="k-ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18v.5"/></svg><div class="k-label" id="kOverLabel">Вероятность переполнения</div><div class="k-val" id="kOver">—</div><div class="k-sub" id="kOverSub"></div></div>
+</section>
+    <div class="ov-grid">
+      <section class="card map-card">
+    <div class="card-h">
+      <div class="card-t"><svg class="ico-sm" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-8 9 8M5 10v10h14V10"/></svg><h2>Загрузка остановок на карте</h2><p class="card-sub">Оценка входов по остановкам за выбранный час; ▶ — анимация по часам</p></div>
+      <span class="badge" id="mapBadge">оценка</span>
+    </div>
+    <div class="map-wrap">
+      <div id="map"></div>
+      <div id="mapNote" class="map-note hidden"></div>
+      <div class="legend" id="legend"></div>
+    </div>
+    <div class="player">
+      <button id="play" class="play" title="Анимация по часам" aria-label="Воспроизвести">▶</button>
+      <input type="range" id="hour" min="0" max="23" value="8">
+      <div class="hour-lbl"><b id="hourLbl">08:00</b><span id="hourSum"></span></div>
+    </div>
+    <p class="hint">Прогноз по остановкам — оценка: прогноз маршрута на час × доля остановки (равные веса, пересадочные узлы ×2, конечные ×0,1). Размер и цвет кружка — пассажиров за час.</p>
+  </section>
+      <aside class="rail" aria-label="Внимание">
+      <section class="card rail-risk" id="riskCard">
+        <div class="card-h"><div class="card-t"><svg class="ico-sm risk-ico" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v5M12 18v.5"/></svg><h2>Внимание</h2><p class="card-sub" id="riskSub">Часы с наибольшей вероятностью переполнения</p></div></div>
+        <ol class="risk-list" id="riskList"><li class="empty">Считаю риски…</li></ol>
+        <button class="btn small linkish" data-goto="fleet">Все рекомендации по выпуску →</button>
+      </section>
+      <section class="card side-card rail-stops">
+    <div class="card-h"><h2 id="topTitle">Самые загруженные остановки</h2></div>
+    <ol id="topStops" class="top"></ol>
+    
+    <div id="explainBox" class="explain hidden">
+      <h3>Из чего складывается прогноз</h3>
+      <div id="explainBody"></div>
+    </div>
+  </section>
+    </aside>
+    </div>
+    <div class="line-slot" id="slot-line-overview">
+      <section class="card wide">
+    <div class="card-h">
+      <div class="card-t"><svg class="ico-sm" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg><h2 id="lineTitle">Динамика: факт и прогноз</h2><p class="card-sub">Прогноз с 80 % интервалом, факт для сравнения; горизонт — в фильтрах</p></div>
+      <span class="chip hidden" id="stopChip"></span>
+    </div>
+    <div id="lineChart" class="chart"></div>
+    <p class="hint" id="lineHint"></p>
+  </section>
+    </div>
+  </section>
+  <section class="view" id="view-fleet" role="tabpanel" aria-labelledby="tab-fleet" tabindex="-1" hidden>
+    <div class="view-h"><h2 class="view-title">Выпуск</h2><p class="view-sub">Сколько вагонов нужно по часам и где добавить или снять</p></div>
+    <section class="card wide" id="fleetCard">
+    <div class="card-h">
+      <div class="card-t"><svg class="ico-sm" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="13" rx="3"/><path d="M5 11h14M9 20l-2 2M15 20l2 2M8 17v3M16 17v3"/></svg><h2 id="fleetTitle">Выпуск подвижного состава</h2><p class="card-sub">Сколько вагонов нужно по часам и сколько выходит сейчас: синее — хватает, оранжевое — добавить, красное — переполнение</p></div>
+      <span class="badge" id="fleetBadge"></span>
+    </div>
+    <div class="fleet-params">
+      <label class="f"><span>Вместимость, пасс.</span><input type="number" id="fCap" placeholder="из наряда" min="50" max="400" step="5"></label>
+      <label class="f"><span>Целевая загрузка</span><input type="number" id="fLoad" value="0.8" min="0.3" max="1.2" step="0.05"></label>
+      <label class="f"><span>Доля пик. направления</span><input type="number" id="fShare" value="0.6" min="0.5" max="1" step="0.05"></label>
+      <label class="f"><span>Сменяемость</span><input type="number" id="fTurn" value="1.5" min="1" max="5" step="0.1"></label>
+      <label class="f"><span>Скорость, км/ч</span><input type="number" id="fSpeed" placeholder="17,2" min="5" max="40" step="0.5"></label>
+      <label class="f"><span>Отстой, мин</span><input type="number" id="fLay" value="10" min="0" max="60" step="1"></label>
+      <label class="f"><span>Макс. интервал, мин</span><input type="number" id="fHead" value="20" min="3" max="60" step="1"></label>
+      <label class="f switch" id="fP90Box" title="Считать потребность по верхней границе 80 % интервала (P90), а не по медиане">
+        <span>Запас</span><span class="sw"><input type="checkbox" id="fP90"><i></i><b>Планировать по P90</b></span></label>
+    </div>
+    <div class="fleet-grid">
+      <div id="fleetChart" class="chart"></div>
+      <div class="recs">
+        <h3>Рекомендации на <span id="fleetDate"></span></h3>
+        <ul id="fleetRecs"></ul>
+      </div>
+    </div>
+    <p class="hint" id="fleetHint"></p>
+  </section>
+  </section>
+  <section class="view" id="view-analytics" role="tabpanel" aria-labelledby="tab-analytics" tabindex="-1" hidden>
+    <div class="view-h"><h2 class="view-title">Аналитика</h2><p class="view-sub">День, месяц, год: динамика, тепловая карта, таблица, экспорт</p></div>
+    <div class="line-slot" id="slot-line-analytics"></div>
+    <section class="card wide" id="heatCard">
+    <div class="card-h"><div class="card-t"><svg class="ico-sm" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg><h2 id="heatTitle">Тепловая карта: день × час</h2><p class="card-sub">Где в сутках и по каким дням пики нагрузки</p></div></div>
+    <div id="heatChart" class="chart tall"></div>
+  </section>
+    <section class="card wide" id="tableCard">
+    <div class="card-h"><div class="card-t"><svg class="ico-sm" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-8M22 20H2"/></svg><h2>Таблица маршрутов</h2><p class="card-sub">Сводка по 10 маршрутам за выбранный период; нажмите на строку, чтобы выбрать маршрут</p></div><span class="sub2" id="tableSub"></span></div>
+    <div class="table-wrap"><table id="routeTable"><thead></thead><tbody></tbody></table></div>
+  </section>
+  </section>
+  <section class="view" id="view-anomalies" role="tabpanel" aria-labelledby="tab-anomalies" tabindex="-1" hidden>
+    <div class="view-h"><h2 class="view-title">ИИ-аномалии</h2><p class="view-sub">Необычные дни в истории и их причины</p></div>
+    <section class="card wide" id="anomCard">
+    <div class="card-h">
+      <div class="card-t"><svg class="ico-sm" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-6 4 4 4-8 5 10"/><circle cx="16" cy="7" r="1.6"/></svg><h2>ИИ-детектор аномалий</h2><p class="card-sub">ИИ-детектор без учителя: провалы, всплески и нетипичные профили дней</p></div>
+      <span class="badge" id="anomBadge">история январь–октябрь 2025</span>
+    </div>
+    <div class="anom-top">
+      <div class="anom-sum" id="anomSum"></div>
+      <div class="btns wrap">
+        <span class="seg small" id="anomKind">
+          <button data-k="" class="on">Все</button><button data-k="drop">Провалы</button><button data-k="spike">Всплески</button><button data-k="shape">Профиль</button>
+        </span>
+        <button class="btn small" id="anomExclude" title="Информационная кнопка">Исключить аномалии из обучения</button>
+      </div>
+    </div>
+    <div class="note hidden" id="anomNote"></div>
+    <div class="table-wrap anom-table"><table id="anomTable"><thead></thead><tbody></tbody></table></div>
+    <p class="hint" id="anomHint">Детектор сравнивает каждый день с ожидаемым по модели и размечает провалы, всплески и нетипичный суточный профиль. Точки на графике «Суточные итоги» (горизонт «Месяц», период факта): красная — провал, жёлтая — всплеск или аномальный профиль. Нажмите на строку, чтобы открыть месяц.</p>
+  </section>
+  </section>
+  <section class="view" id="view-model" role="tabpanel" aria-labelledby="tab-model" tabindex="-1" hidden>
+    <div class="view-h"><h2 class="view-title">Модель</h2><p class="view-sub">Как считается прогноз, качество, источники данных</p></div>
+    <section class="card wide" id="modelCard">
+    <div class="card-h">
+      <div class="card-t"><svg class="ico-sm" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4M5 5l3 3M16 16l3 3M5 19l3-3M16 8l3-3"/></svg><h2>Модель</h2><p class="card-sub">Структурная модель v08, ML-слой, валидация и внешние источники</p></div>
+      <span class="badge" id="modelBadge">структурная v08</span>
+    </div>
+    <div class="model-grid">
+      <div>
+        <h3>Как считается прогноз</h3>
+        <div id="modelDesc"></div>
+        <label class="sw big" id="hybridSwitch"><input type="checkbox" id="hybridToggle"><i></i><b>Гибрид ML</b><small id="hybridNote"></small></label>
+      </div>
+      <div>
+        <h3 id="foldTitle">Качество по фолдам</h3>
+        <div class="table-wrap" id="foldTable"></div>
+        <p class="hint" id="modelSummary"></p>
+      </div>
+      <div>
+        <h3>Внешние источники</h3>
+        <ul class="src" id="modelSources"></ul>
+        <h3>Факторы объяснения</h3>
+        <ul class="src" id="modelFactors"></ul>
+      </div>
+    </div>
+    <details class="model-more hidden" id="modelMore">
+      <summary>Отчёт ML: интервалы, ИИ-детектор, автоочистка, решения</summary>
+      <div class="model-tables" id="modelTables"></div>
+    </details>
+  </section>
+    <div id="dqBox" class="explain hidden card dq-card">
+      <h3>Качество данных</h3>
+      <div id="dqBody"></div>
+    </div>
+  </section>
+</main>
+</div>
+
+<div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-labelledby="drawerTitle" hidden>
+  <h2 class="sr-only" id="drawerTitle">Сценарий: корректирующие коэффициенты</h2>
+<section class="adj card" id="adjCard" aria-label="Корректирующие коэффициенты">
+  <button class="ghost drawer-close" id="drawerClose" aria-label="Закрыть сценарий">✕</button>
+  <div class="card-h adj-h">
+    <button class="adj-toggle" id="adjToggle" aria-expanded="true"><span class="chev">▾</span><h2>Корректирующие коэффициенты</h2></button>
+    <div class="adj-delta" id="adjDelta"><span class="muted">прогноз модели без коррекции</span></div>
+    <span class="badge" id="adjCount" title="Сколько корректировок сейчас применено">не заданы</span>
+    <button class="btn small" id="adjReset" title="Вернуть прогноз модели: сбросить все коэффициенты">Сбросить всё</button>
+  </div>
+  <div class="adj-body" id="adjBody">
+    <div class="adj-grid">
+      <fieldset class="adj-col">
+        <legend>Уровень / сезон<button type="button" class="grp-reset" data-grp="level" title="Сбросить группу «Уровень / сезон»">сброс</button></legend>
+        <p class="grp-desc">Сдвигает весь прогноз: ×1,05 = на 5 % больше пассажиров во все часы выбранных дней прогноза.</p>
+        <label class="row" title="Умножает прогноз на выбранный коэффициент. Пример: ×1,05 — ожидаем на 5 % больше пассажиров (рост спроса, сезон)."><span>Множитель</span><output id="oLevel">×1,00</output></label>
+        <input type="range" id="kLevel" min="0.7" max="1.3" step="0.01" value="1">
+        <label class="row"><span>Применить к</span>
+          <select id="kLevelScope"><option value="all">всем маршрутам</option><option value="route">выбранному маршруту</option></select></label>
+        <legend class="sub">Особые дни<button type="button" class="grp-reset" data-grp="special" title="Сбросить «Особые дни»">сброс</button></legend>
+        <label class="row" title="1 — праздники и переносы влияют как в модели; 0 — считать такие дни обычными; 1,5 — эффект на 50 % сильнее."><span>Сила эффекта праздников и переносов</span><output id="oSpecial">×1,00</output></label>
+        <input type="range" id="kSpecial" min="0" max="2" step="0.05" value="1">
+        <p class="hint">1 — как в модели, 0 — считать особые дни обычными.</p>
+      </fieldset>
+      <fieldset class="adj-col">
+        <legend>Погода<button type="button" class="grp-reset" data-grp="weather" title="Сбросить группу «Погода»">сброс</button></legend>
+        <p class="grp-desc">Дождь и снег снижают поездки: −1,1 % на каждый мм осадков сверх нормы, −3,4 % в мороз ниже −10 °C.</p>
+        <label class="row" title="Эффект каждого миллиметра осадков за 06–21 ч относительно нормы конца октября. Модель: −1,1 %/мм."><span>Осадки, % на 1 мм</span><input type="number" id="wPrecip" value="-1.1" step="0.1" min="-20" max="20"></label>
+        <label class="row" title="Снижение пассажиропотока в день со средней температурой ниже −10 °C. Модель: −3,4 %."><span>Мороз ниже −10 °C, %</span><input type="number" id="wCold" value="-3.4" step="0.1" min="-50" max="50"></label>
+        <label class="row" title="Погода не может снизить прогноз сильнее этого множителя (0,9 = не более −10 %)."><span>Нижняя граница множителя</span><input type="number" id="wFloor" value="0.9" step="0.01" min="0.3" max="1"></label>
+        <div class="whatif">
+          <div class="row"><span>Что если: на дату</span><input type="date" id="wDate" min="2025-11-01" max="2025-12-31"></div>
+          <div class="row"><span>осадки +мм / t, °C</span><span class="pair"><input type="number" id="wMm" value="10" step="1" min="-50" max="100"><input type="number" id="wT" placeholder="t" step="1" min="-50" max="45"></span></div>
+          <button class="btn small" id="wAdd">Применить сценарий погоды</button>
+        </div>
+        <div class="chips" id="wChips"></div>
+        <p class="hint" id="wInfo"></p>
+      </fieldset>
+      <fieldset class="adj-col">
+        <legend>События<button type="button" class="grp-reset" data-grp="events" title="Сбросить группу «События»">сброс</button></legend>
+        <p class="grp-desc">Перекрытия, ремонты, фестивали: множитель на маршрут (или все) на даты и часы. ×0 — движения нет, ×1,2 — на 20 % больше.</p>
+        <div class="row"><span>Маршрут</span><select id="eRoute"></select></div>
+        <div class="row"><span>С / по</span><span class="pair"><input type="date" id="eFrom" min="2025-11-01" max="2025-12-31"><input type="date" id="eTo" min="2025-11-01" max="2025-12-31"></span></div>
+        <div class="row"><span>Часы</span><span class="pair"><select id="eH0"></select><select id="eH1"></select></span></div>
+        <div class="row"><span>Множитель</span><input type="number" id="eK" value="0" step="0.05" min="0" max="5"></div>
+        <div class="btns wrap">
+          <button class="btn small ghost-btn" data-k="0">Перекрытие ×0</button>
+          <button class="btn small ghost-btn" data-k="0.5">Частичное ×0,5</button>
+          <button class="btn small ghost-btn" data-k="1.2">Фестиваль ×1,2</button>
+          <button class="btn small" id="eAdd">Добавить событие</button>
+        </div>
+        <div class="chips" id="eChips"></div>
+      </fieldset>
+      <fieldset class="adj-col" id="trafficCol">
+        <legend>Пробки (ЦОДД, баллы 0–10)<button type="button" class="grp-reset" data-grp="traffic" title="Сбросить группу «Пробки (ЦОДД, баллы 0–10)»">сброс</button></legend>
+        <p class="grp-desc">Пробки выше нормы переводят часть поездок на трамвай: +0,7 % на балл выше нормы 3 недель.</p>
+        <p class="hint tight" id="tInfo">—</p>
+        <label class="row"><span>Сценарий на дату</span><input type="date" id="tDate" min="2025-11-01" max="2025-12-31"></label>
+        <label class="row"><span>Балл пробок</span><output id="oTraffic">7</output></label>
+        <input type="range" id="tScore" min="0" max="10" step="1" value="7" aria-label="Балл пробок ЦОДД">
+        <label class="row" title="Подтверждено: +0,7 % пассажиров трамвая на каждый балл выше нормы 3 недель (p = 0,025)"><span>Эффект, % на балл выше нормы</span><input type="number" id="tEffect" value="0.7" step="0.1" min="0" max="5"></label>
+        <div class="btns wrap">
+          <button class="btn small" id="tAdd">Применить балл</button>
+          <button class="btn small ghost-btn" id="tActual" title="Взять фактические посты ЦОДД за ноябрь–декабрь 2025">Фактические посты ЦОДД</button>
+        </div>
+        <div class="chips" id="tChips"></div>
+        <p class="hint">Модель v08 считает день обычным (балл = норма). Пробки выше нормы переводят часть поездок с автомобиля на трамвай: +0,7 %/балл; в дни с баллом ≥ 7 — в среднем +2 %.</p>
+      </fieldset>
+    </div>
+    <p class="hint">Коэффициенты пересчитывают прогноз на всех графиках, карте, KPI, в выпуске подвижного состава и в экспорте. Факт (январь–октябрь) не меняется.
+      Те же коэффициенты доступны в API: <code id="adjApi">—</code></p>
+  </div>
+</section>
+</aside>
+
+<button id="asstBtn" class="asst-btn" title="Помощник диспетчера" aria-expanded="false" aria-controls="asst"><img src="/static/img/cat_sitting.png" alt="" width="26" height="29" class="cat-avatar">Помощник диспетчера</button>
+<section id="asst" class="asst hidden" aria-label="Помощник диспетчера">
+  <div class="asst-h">
+    <div class="asst-title"><img src="/static/img/cat_sitting.png" alt="Кот-диспетчер" width="34" height="38" class="cat-avatar"><div><b>Помощник диспетчера</b><div class="muted" id="asstRef"></div></div></div>
+    <button class="ghost" id="asstClose" aria-label="Закрыть">✕</button>
+  </div>
+  <div class="asst-log" id="asstLog" aria-live="polite"></div>
+  <div class="chips asst-ex" id="asstEx"></div>
+  <form class="asst-form" id="asstForm">
+    <input type="text" id="asstQ" maxlength="300" placeholder="Спросите что-нибудь…" aria-label="Вопрос помощнику, например: сколько вагонов нужно на 17 маршруте в 8 утра?" autocomplete="off">
+    <button class="btn" type="submit">Спросить</button>
+  </form>
+</section>
+
+<footer class="foot">
+  <img src="/static/img/cat_sitting.png" alt="" width="40" height="44" class="foot-cat" loading="lazy">
+  Данные: валидации трамвайных маршрутов 1, 7, 11, 12, 17, 25, 26, 28, 50 (январь–октябрь 2025). Маршрут 5 — новый (запуск 16.12.2025): только прогноз.
+  Геопривязка остановок доступна для маршрутов 1, 5, 7, 11, 12. <span id="footInfo"></span>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
